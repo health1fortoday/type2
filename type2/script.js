@@ -5,7 +5,7 @@
 const CONFIG = {
     // ⏱️ Tempo de Delay: Formato "Minutos:Segundos"
     // Exemplo: "48:55", "12:00" ou "00:15"
-    tempoDeDelay: "51:39",
+    tempoDeDelay: "39:00",
 
     // 🔗 Links de Checkout dos Botões
     linkPote2: "https://pandastyle.life/b?p=GLP2V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=2b&aff_id=211851&subid={subid}",
