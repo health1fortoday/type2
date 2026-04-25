@@ -8,108 +8,16 @@ const CONFIG = {
     tempoDeDelay: "37:50",
 
     // 🔗 Links de Checkout dos Botões
-    // O placeholder {subid} será resolvido com o melhor identificador disponível
-    // (sub_id > subid > fbclid > gclid > ttclid > vazio)
-    linkPote2: "https://pandastyle.life/b?p=GLP2V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=2b&aff_id=211851&subid={subid}",
-    linkPote6: "https://pandastyle.life/b?p=GLP6V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=6b&aff_id=211851&subid={subid}",
-    linkPote3: "https://pandastyle.life/b?p=GLP3V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=3b&aff_id=211851&subid={subid}"
+    // Tracking (UTMs, subid, fbclid etc.) é responsabilidade do UTMify — ele
+    // reescreve os hrefs automaticamente no carregamento da página.
+    linkPote2: "https://pandastyle.life/b?p=GLP2V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=2b&aff_id=211851",
+    linkPote6: "https://pandastyle.life/b?p=GLP6V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=6b&aff_id=211851",
+    linkPote3: "https://pandastyle.life/b?p=GLP3V1&nc=1&preview=1&b=132&fid=358&fnid=2&pfnid=1&pg=9314&template=3b&aff_id=211851"
 };
 
 // =====================================================================
 // 💻 CÓDIGO DO SISTEMA (Não precisa alterar nada daqui para baixo)
 // =====================================================================
-
-// ---------------------------------------------------------------------
-// UTM / Tracking Passthrough
-// ---------------------------------------------------------------------
-// Lista de parâmetros de tracking que serão propagados pro checkout.
-const TRACKING_PARAM_KEYS = [
-    // UTMs padrão
-    'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_id',
-    // Click IDs das plataformas de ads
-    'fbclid', 'gclid', 'ttclid', 'li_fat_id', 'msclkid', 'twclid', 'epik', 'wbraid', 'gbraid',
-    // Affiliate / Sub IDs
-    'sub_id', 'subid', 'sub1', 'sub2', 'sub3', 'sub4', 'sub5',
-    'click_id', 'clickid', 'cid',
-    // UTMify
-    'xcod', 'sck',
-    // Facebook extras
-    'fb_ad_id', 'fb_adset_id', 'fb_campaign_id',
-    // Genéricos
-    'src', 'source', 'ref'
-];
-
-// Captura TODOS os tracking params da URL atual (+ qualquer utm_* custom)
-function getIncomingTrackingParams() {
-    const params = new URLSearchParams(window.location.search);
-    const result = {};
-
-    // Pegar params conhecidos
-    TRACKING_PARAM_KEYS.forEach(function(key) {
-        const val = params.get(key);
-        if (val) result[key] = val;
-    });
-
-    // Pegar QUALQUER param que comece com utm_ (para suportar utm_* customizados)
-    params.forEach(function(value, key) {
-        if (key.indexOf('utm_') === 0 && !result[key] && value) {
-            result[key] = value;
-        }
-    });
-
-    return result;
-}
-
-// Resolve o link base: substitui {subid} + anexa UTMs/click IDs
-function resolveCheckoutUrl(baseUrl, incoming) {
-    // 1) Resolver placeholder {subid} — prioridade: sub_id > subid > fbclid > gclid > ttclid
-    const subidValue = incoming.sub_id
-                    || incoming.subid
-                    || incoming.fbclid
-                    || incoming.gclid
-                    || incoming.ttclid
-                    || '';
-
-    let url = baseUrl.replace(/\{subid\}/g, encodeURIComponent(subidValue));
-
-    // 2) Limpar quaisquer outros placeholders não resolvidos (defensivo)
-    url = url.replace(/\{[^}]+\}/g, '');
-
-    // 3) Anexar tracking params que AINDA não existem no URL base
-    try {
-        const urlObj = new URL(url);
-        Object.keys(incoming).forEach(function(key) {
-            const val = incoming[key];
-            if (val && !urlObj.searchParams.has(key)) {
-                urlObj.searchParams.set(key, val);
-            }
-        });
-        return urlObj.toString();
-    } catch (e) {
-        // Se URL malformada, retorna como está
-        return url;
-    }
-}
-
-// Vincula link + listener de clique (que reconstrói no momento do click)
-function attachCheckoutLink(elementId, baseUrl) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-
-    // Guarda o template base no próprio elemento (fonte da verdade)
-    element.dataset.checkoutTemplate = baseUrl;
-
-    // Aplica o href inicial (já resolvido com UTMs da URL atual)
-    const initialParams = getIncomingTrackingParams();
-    element.href = resolveCheckoutUrl(baseUrl, initialParams);
-
-    // No click, RECONSTRÓI na hora — garante que mudanças posteriores
-    // na URL (ex: utmify reescreve, redirects internos) sejam respeitadas.
-    element.addEventListener('click', function() {
-        const freshParams = getIncomingTrackingParams();
-        this.href = resolveCheckoutUrl(this.dataset.checkoutTemplate, freshParams);
-    });
-}
 
 // ---------------------------------------------------------------------
 // DOM Ready
@@ -128,10 +36,12 @@ function onDomReady(callback) {
 
 onDomReady(function() {
 
-    // 1. APLICAR LINKS DE CHECKOUT (com UTM passthrough + resolução de {subid})
-    attachCheckoutLink('card-2-bottles', CONFIG.linkPote2);
-    attachCheckoutLink('card-6-bottles', CONFIG.linkPote6);
-    attachCheckoutLink('card-3-bottles', CONFIG.linkPote3);
+    // 1. APLICAR LINKS DE CHECKOUT
+    // Tracking é responsabilidade do UTMify — ele intercepta os hrefs e injeta
+    // UTMs, subid, fbclid e click IDs automaticamente. Aqui só setamos a base.
+    document.getElementById('card-2-bottles').href = CONFIG.linkPote2;
+    document.getElementById('card-6-bottles').href = CONFIG.linkPote6;
+    document.getElementById('card-3-bottles').href = CONFIG.linkPote3;
 
     // 2. SISTEMA DE DELAY DA OFERTA E NOTIFICAÇÕES
     function calcularDelayEmMilissegundos(tempoStr) {
